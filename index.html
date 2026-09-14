@@ -1,0 +1,881 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>TATTAN! - Naguilian Living History & Cultural Archive</title>
+
+  <!-- Leaflet CSS for Map -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <!-- Google Fonts: Inter & Playfair Display -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Playfair+Display:ital,wght@0,600;0,700;1,400&display=swap" rel="stylesheet">
+  <!-- EXIF Reader JS for GPS Photo Verification -->
+  <script src="https://cdn.jsdelivr.net/npm/exif-js"></script>
+
+  <style>
+    :root {
+      --bg-main: #2C1E18;          /* Rich Heritage Brown / Clay */
+      --card-bg: #3B2B23;          /* Warm Medium Earth Brown */
+      --card-inner: #48362D;       /* Inner Box Dark Brown */
+      --primary: #A64B34;          /* Warm Terracotta / Clay Red */
+      --primary-dark: #7A3221;     /* Deep Red Brown */
+      --accent: #D4A373;           /* Warm Sand / Antique Gold */
+      --accent-hover: #FAEDCD;     /* Soft Cream Highlight */
+      --text-main: #F3EFEA;        /* Soft Linen Cream */
+      --text-muted: #C2B6A9;       /* Warm Slate Sand */
+      --border: #523D33;           /* Dark Clay Border */
+      --shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.4);
+      --success: #81C784;          /* GPS Verified Green */
+      --warning: #FFB74D;          /* GPS Alert Orange */
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { 
+      font-family: 'Inter', -apple-system, sans-serif; 
+      background: var(--bg-main); 
+      color: var(--text-main); 
+      line-height: 1.6; 
+    }
+
+    header { 
+      background: linear-gradient(135deg, #1D130E, #3B2B23); 
+      color: var(--text-main); 
+      padding: 3.5rem 1.5rem; 
+      text-align: center;
+      border-bottom: 2px solid var(--border);
+    }
+    header h1 { 
+      font-family: 'Playfair Display', serif; 
+      font-size: 3.5rem; 
+      margin-bottom: 0.3rem; 
+      letter-spacing: 2px; 
+      color: var(--accent); 
+    }
+    header p { 
+      font-size: 1.15rem; 
+      color: var(--text-muted); 
+      max-width: 750px; 
+      margin: auto; 
+      font-weight: 300; 
+    }
+    .badge { 
+      display: inline-block; 
+      background: rgba(212, 163, 115, 0.15); 
+      border: 1px solid var(--accent);
+      color: var(--accent-hover);
+      padding: 6px 16px; 
+      border-radius: 30px; 
+      font-size: 0.75rem; 
+      margin-top: 14px; 
+      font-weight: 600; 
+      letter-spacing: 1px;
+      text-transform: uppercase; 
+    }
+
+    .container { 
+      max-width: 1200px; 
+      margin: 2.5rem auto; 
+      padding: 0 1.5rem; 
+      display: grid; 
+      grid-template-columns: 1fr 1fr; 
+      gap: 2rem; 
+    }
+    @media (max-width: 850px) { .container { grid-template-columns: 1fr; } }
+
+    .card { 
+      background: var(--card-bg); 
+      border-radius: 16px; 
+      padding: 1.8rem; 
+      box-shadow: var(--shadow); 
+      border: 1px solid var(--border); 
+    }
+    .card h2 { 
+      font-family: 'Playfair Display', serif;
+      color: var(--accent); 
+      font-size: 1.45rem; 
+      margin-bottom: 1.2rem; 
+      display: flex; 
+      align-items: center; 
+      gap: 8px;
+    }
+
+    /* Form & GPS Verification Styles */
+    .form-group { margin-bottom: 1rem; }
+    label { display: block; font-weight: 600; font-size: 0.85rem; margin-bottom: 6px; color: var(--text-main); }
+    input, select, textarea { 
+      width: 100%; 
+      padding: 11px 14px; 
+      border: 1px solid var(--border); 
+      border-radius: 8px; 
+      font-size: 0.95rem; 
+      font-family: inherit; 
+      background: var(--bg-main); 
+      color: var(--text-main); 
+      transition: all 0.2s; 
+    }
+    input:focus, select:focus, textarea:focus { 
+      outline: none; 
+      border-color: var(--accent); 
+      box-shadow: 0 0 0 3px rgba(212, 163, 115, 0.2); 
+    }
+    .btn-submit { 
+      width: 100%; 
+      background: var(--primary); 
+      color: white; 
+      border: none; 
+      padding: 14px; 
+      border-radius: 8px; 
+      font-size: 0.95rem; 
+      font-weight: 600; 
+      cursor: pointer; 
+      transition: background 0.2s; 
+    }
+    .btn-submit:hover { background: var(--primary-dark); }
+
+    .gps-box { 
+      background: var(--card-inner); 
+      border: 1px dashed var(--accent); 
+      border-radius: 8px; 
+      padding: 14px; 
+      margin-bottom: 1rem; 
+      text-align: center; 
+    }
+    .gps-status { font-size: 0.82rem; font-weight: 600; margin-top: 6px; color: var(--text-muted); }
+    .gps-status.verified { color: var(--success); }
+    .gps-status.warning { color: var(--warning); }
+
+    /* Interactive Map & Timeline */
+    #map { height: 340px; width: 100%; border-radius: 12px; z-index: 1; border: 1px solid var(--border); }
+    .map-hint { font-size: 0.82rem; color: var(--accent); font-weight: 600; margin-top: 10px; text-align: center; }
+    
+    .history-panel { margin-top: 1.2rem; background: var(--card-inner); padding: 1.4rem; border-radius: 12px; border: 1px solid var(--border); }
+    .town-header-bar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; border-bottom: 1px solid var(--border); padding-bottom: 8px; }
+    .town-header-bar h3 { font-family: 'Playfair Display', serif; color: var(--accent); font-size: 1.3rem; }
+    .town-tag { background: var(--primary); color: white; font-size: 0.7rem; font-weight: 700; padding: 3px 8px; border-radius: 4px; text-transform: uppercase; }
+
+    .era-nav { display: flex; gap: 6px; margin-bottom: 12px; flex-wrap: wrap; }
+    .era-tab { 
+      background: var(--bg-main); 
+      border: 1px solid var(--border); 
+      padding: 6px 12px; 
+      border-radius: 6px; 
+      font-size: 0.78rem; 
+      font-weight: 600; 
+      cursor: pointer; 
+      color: var(--text-muted); 
+      transition: all 0.2s; 
+    }
+    .era-tab.active { background: var(--primary); color: white; border-color: var(--primary); }
+
+    .importance-box { background: var(--bg-main); border-left: 4px solid var(--accent); padding: 10px 14px; border-radius: 0 8px 8px 0; margin-bottom: 10px; }
+    .importance-title { font-size: 0.75rem; font-weight: 700; text-transform: uppercase; color: var(--accent); letter-spacing: 0.5px; }
+    .importance-text { font-size: 0.9rem; font-weight: 600; color: var(--text-main); }
+    .era-narrative { font-size: 0.88rem; color: var(--text-muted); line-height: 1.55; }
+
+    /* Custom Leaflet Popup Styling */
+    .leaflet-popup-content-wrapper {
+      background: var(--card-bg) !important;
+      color: var(--text-main) !important;
+      border: 1px solid var(--accent) !important;
+      border-radius: 8px !important;
+    }
+    .leaflet-popup-tip { background: var(--card-bg) !important; }
+    .popup-title { font-family: 'Playfair Display', serif; color: var(--accent); font-size: 1.1rem; margin-bottom: 2px; }
+    .popup-sub { font-size: 0.75rem; color: var(--primary); font-weight: 700; margin-bottom: 6px; text-transform: uppercase; }
+    .popup-body { font-size: 0.82rem; color: var(--text-muted); line-height: 1.4; }
+
+    /* Showcase Section */
+    .full-width { grid-column: 1 / -1; }
+    .showcase-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 1.2rem; }
+    .showcase-card { 
+      background: var(--card-inner); 
+      border-radius: 12px; 
+      overflow: hidden; 
+      border: 1px solid var(--border); 
+      text-align: center;
+      padding: 2rem 1rem;
+      color: var(--text-muted);
+      font-size: 0.9rem;
+    }
+    .showcase-card span { display: block; font-size: 2rem; margin-bottom: 8px; }
+
+    /* Literature Grid Section */
+    .lit-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 1.5rem; }
+    .lit-card { 
+      background: var(--card-inner); 
+      border-radius: 12px; 
+      padding: 1.4rem; 
+      border: 1px solid var(--border); 
+      display: flex; 
+      flex-direction: column; 
+      justify-content: space-between; 
+      transition: all 0.3s ease; 
+    }
+    .lit-card:hover { transform: translateY(-3px); border-color: var(--accent); box-shadow: var(--shadow); }
+    .lit-meta { font-size: 0.72rem; font-weight: 700; color: var(--primary); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 4px; }
+    .lit-title { font-family: 'Playfair Display', serif; font-size: 1.2rem; color: var(--accent); margin-bottom: 6px; font-weight: 700; }
+    .lit-author { font-size: 0.82rem; font-style: italic; color: var(--text-muted); margin-bottom: 10px; }
+    .lit-desc { font-size: 0.88rem; color: var(--text-muted); margin-bottom: 14px; line-height: 1.5; }
+    .lit-btn { 
+      background: var(--bg-main); 
+      color: var(--accent); 
+      border: 1px solid var(--accent); 
+      padding: 8px 12px; 
+      border-radius: 6px; 
+      font-size: 0.8rem; 
+      font-weight: 600; 
+      cursor: pointer; 
+      text-align: center; 
+      transition: all 0.2s; 
+    }
+    .lit-btn:hover { background: var(--primary); color: white; border-color: var(--primary); }
+
+    /* Modal Inspection Popup */
+    .modal-overlay { 
+      position: fixed; top: 0; left: 0; width: 100%; height: 100%; 
+      background: rgba(0,0,0,0.8); backdrop-filter: blur(4px); 
+      display: none; justify-content: center; align-items: center; z-index: 2000; padding: 1rem; 
+    }
+    .modal-card { background: var(--card-bg); border-radius: 16px; max-width: 520px; width: 100%; overflow: hidden; position: relative; border: 1px solid var(--border); }
+    .modal-card img { width: 100%; height: 220px; object-fit: cover; }
+    .modal-body { padding: 1.8rem; max-height: 70vh; overflow-y: auto; }
+    .modal-body h3 { font-family: 'Playfair Display', serif; color: var(--accent); font-size: 1.4rem; margin-bottom: 4px; }
+    .modal-origin { font-size: 0.85rem; color: var(--primary); font-weight: 700; margin-bottom: 12px; text-transform: uppercase; letter-spacing: 0.5px; }
+    .modal-close { position: absolute; top: 12px; right: 12px; background: rgba(0,0,0,0.6); color: white; border: none; width: 32px; height: 32px; border-radius: 50%; font-weight: bold; cursor: pointer; z-index: 10; }
+
+    /* Archive Feed & Filters */
+    .filter-bar { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 1.2rem; }
+    .filter-btn { 
+      background: var(--card-inner); 
+      border: 1px solid var(--border); 
+      padding: 8px 16px; 
+      border-radius: 30px; 
+      font-size: 0.85rem; 
+      font-weight: 600; 
+      cursor: pointer; 
+      color: var(--text-muted); 
+      transition: all 0.2s; 
+    }
+    .filter-btn.active { background: var(--primary); color: white; border-color: var(--primary); }
+
+    .artifact-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 1.5rem; }
+    .artifact-card { background: var(--card-inner); border-radius: 12px; overflow: hidden; border: 1px solid var(--border); }
+    .artifact-card img { width: 100%; height: 200px; object-fit: cover; background: #1a120e; }
+    .artifact-content { padding: 1.2rem; }
+    .artifact-tag { background: rgba(212, 163, 115, 0.15); color: var(--accent); border: 1px solid var(--accent); font-size: 0.72rem; font-weight: 700; padding: 3px 8px; border-radius: 4px; display: inline-block; margin-bottom: 8px; }
+    .gps-badge-tag { background: rgba(129, 199, 132, 0.2); color: var(--success); border: 1px solid var(--success); font-size: 0.72rem; font-weight: 700; padding: 3px 8px; border-radius: 4px; display: inline-block; margin-bottom: 8px; }
+    .artifact-title { font-size: 1.1rem; font-weight: 700; color: var(--text-main); margin-bottom: 2px; }
+    .artifact-location { font-size: 0.8rem; color: var(--text-muted); margin-bottom: 10px; }
+    .artifact-story { font-size: 0.88rem; color: var(--text-muted); }
+
+    /* Dictionary */
+    .dict-search input { width: 100%; margin-bottom: 1.2rem; }
+    .dict-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 1.2rem; }
+    .dict-card { background: var(--card-inner); border-left: 4px solid var(--accent); padding: 1.2rem; border-radius: 0 10px 10px 0; border: 1px solid var(--border); border-left-width: 4px; }
+    .dict-header { display: flex; justify-content: space-between; align-items: center; }
+    .dict-word { font-family: 'Playfair Display', serif; font-size: 1.25rem; font-weight: 700; color: var(--accent); }
+    .dict-audio-btn { background: var(--primary); border: none; color: white; width: 28px; height: 28px; border-radius: 50%; cursor: pointer; font-size: 0.8rem; display: flex; align-items: center; justify-content: center; }
+    .dict-pronounce { font-size: 0.8rem; color: var(--text-muted); font-style: italic; }
+    .dict-meaning { font-weight: 600; margin-top: 6px; font-size: 0.9rem; color: var(--text-main); }
+    .dict-context { font-size: 0.85rem; color: var(--text-muted); margin-top: 6px; }
+
+    /* AI Chatbot Widget */
+    .chat-widget-btn { 
+      position: fixed; bottom: 24px; right: 24px; 
+      background: var(--primary); color: white; border: none; 
+      padding: 14px 22px; border-radius: 30px; font-weight: 600; 
+      box-shadow: 0 8px 20px rgba(0,0,0,0.5); cursor: pointer; z-index: 999; 
+      display: flex; align-items: center; gap: 8px; border: 1px solid var(--accent); 
+    }
+    .chat-widget-btn:hover { background: var(--primary-dark); }
+    .chat-window { 
+      position: fixed; bottom: 90px; right: 24px; width: 360px; height: 480px; 
+      background: var(--card-bg); border-radius: 16px; box-shadow: 0 12px 30px rgba(0,0,0,0.6); 
+      display: none; flex-direction: column; z-index: 1000; border: 1px solid var(--border); overflow: hidden; 
+    }
+    .chat-header { 
+      background: linear-gradient(135deg, #1D130E, #3B2B23); 
+      color: var(--accent); padding: 14px 18px; font-weight: 700; 
+      display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border); 
+    }
+    .chat-header button { background: none; border: none; color: var(--text-muted); font-size: 1.2rem; cursor: pointer; }
+    .chat-messages { flex: 1; padding: 14px; overflow-y: auto; display: flex; flex-direction: column; gap: 10px; font-size: 0.9rem; background: var(--bg-main); }
+    .chat-msg { padding: 10px 14px; border-radius: 12px; max-width: 85%; line-height: 1.4; }
+    .chat-msg.bot { background: var(--card-inner); color: var(--text-main); align-self: flex-start; border: 1px solid var(--border); }
+    .chat-msg.user { background: var(--primary); color: white; align-self: flex-end; }
+    .chat-chips { display: flex; gap: 6px; overflow-x: auto; padding: 8px 14px; background: var(--card-bg); border-top: 1px solid var(--border); }
+    .chip { background: var(--card-inner); font-size: 0.75rem; padding: 6px 10px; border-radius: 12px; white-space: nowrap; cursor: pointer; border: 1px solid var(--border); color: var(--text-main); }
+    .chat-input-area { display: flex; border-top: 1px solid var(--border); padding: 8px; background: var(--card-bg); }
+    .chat-input-area input { flex: 1; border: none; padding: 10px; font-size: 0.9rem; background: transparent; color: var(--text-main); }
+    .chat-input-area button { background: var(--primary); color: white; border: none; padding: 8px 16px; border-radius: 8px; font-weight: 600; cursor: pointer; }
+
+    footer { text-align: center; padding: 2.5rem; color: var(--text-muted); font-size: 0.85rem; margin-top: 3rem; border-top: 1px solid var(--border); }
+  </style>
+</head>
+<body>
+
+  <header>
+    <h1>TATTAN! — Naguilian</h1>
+    <p>Living History, Cultural Memory & GPS-Verified Heirloom Archive of Naguilian, La Union</p>
+    <span class="badge">Naguilian Local Heritage Project</span>
+  </header>
+
+  <div class="container">
+    
+    <!-- Crowdsourcing Upload Form with GPS Verification -->
+    <div class="card">
+      <h2><span>📥</span> Contribute a Naguilian Heirloom</h2>
+      <form id="uploadForm">
+        <div class="form-group">
+          <label for="title">Item Name / Title</label>
+          <input type="text" id="title" placeholder="e.g., Ancestral Basi Jar" required>
+        </div>
+
+        <div class="form-group">
+          <label for="location">Naguilian Barangay Location</label>
+          <select id="location" required>
+            <optgroup label="Official 37 Barangays of Naguilian, La Union">
+              <option value="16.5500,120.3550|Aguioas">Aguioas</option>
+              <option value="16.5512,120.3645|Al-alinao Norte">Al-alinao Norte</option>
+              <option value="16.5550,120.3610|Al-alinao Sur">Al-alinao Sur</option>
+              <option value="16.5410,120.3310|Ambaracao Norte">Ambaracao Norte</option>
+              <option value="16.5440,120.3340|Ambaracao Sur">Ambaracao Sur</option>
+              <option value="16.5710,120.3610|Angin">Angin</option>
+              <option value="16.5820,120.3510|Balecbec">Balecbec</option>
+              <option value="16.5610,120.3420|Bancagan">Bancagan</option>
+              <option value="16.5680,120.3580|Baraoas Norte">Baraoas Norte</option>
+              <option value="16.5700,120.3600|Baraoas Sur">Baraoas Sur</option>
+              <option value="16.5850,120.3350|Bariquir">Bariquir</option>
+              <option value="16.5390,120.3480|Bato">Bato</option>
+              <option value="16.5910,120.3420|Bimmotobot">Bimmotobot</option>
+              <option value="16.5780,120.3220|Cabaritan Norte">Cabaritan Norte</option>
+              <option value="16.5810,120.3250|Cabaritan Sur">Cabaritan Sur</option>
+              <option value="16.5920,120.3750|Casilagan">Casilagan</option>
+              <option value="16.5520,120.3250|Dal-lipaoen">Dal-lipaoen</option>
+              <option value="16.5830,120.3620|Daramuangan">Daramuangan</option>
+              <option value="16.5710,120.3150|Guesset">Guesset</option>
+              <option value="16.5330,120.3550|Gusing Norte">Gusing Norte</option>
+              <option value="16.5360,120.3580|Gusing Sur">Gusing Sur</option>
+              <option value="16.5420,120.3200|Imelda">Imelda</option>
+              <option value="16.5620,120.3720|Lioac Norte">Lioac Norte</option>
+              <option value="16.5650,120.3750|Lioac Sur">Lioac Sur</option>
+              <option value="16.5490,120.3410|Magungunay">Magungunay</option>
+              <option value="16.5540,120.3810|Mamat-ing Norte">Mamat-ing Norte</option>
+              <option value="16.5570,120.3830|Mamat-ing Sur">Mamat-ing Sur</option>
+              <option value="16.5520,120.3450|Nagsidorisan">Nagsidorisan</option>
+              <option value="16.5695,120.3520|Natividad">Natividad</option>
+              <option value="16.5512,120.3645|Ortiz">Ortiz</option>
+              <option value="16.5890,120.3310|Ribsuan">Ribsuan</option>
+              <option value="16.5720,120.3450|San Antonio">San Antonio</option>
+              <option value="16.5800,120.3850|San Isidro">San Isidro</option>
+              <option value="16.5840,120.3650|Sili">Sili</option>
+              <option value="16.5460,120.3620|Suguidan Norte">Suguidan Norte</option>
+              <option value="16.5490,120.3650|Suguidan Sur">Suguidan Sur</option>
+              <option value="16.5950,120.3550|Tuddingan">Tuddingan</option>
+            </optgroup>
+          </select>
+        </div>
+
+        <div class="form-group">
+          <label for="category">Craft Category</label>
+          <select id="category" required>
+            <option value="Fermentation">Fermentation (*Basi* / Sugarcane Wine)</option>
+            <option value="Pottery">Pottery & Clay (*Burnay* Containers)</option>
+            <option value="Weaving">Textiles & Weaving (*Inabel*)</option>
+            <option value="Tools">Agricultural / River Tools</option>
+            <option value="Oral History">Oral History / WWII Archive</option>
+          </select>
+        </div>
+
+        <!-- EXIF GPS Verification Module -->
+        <div class="gps-box">
+          <label for="photoFile" style="cursor:pointer; margin-bottom: 2px;">📷 Upload Photo (Scans Embedded EXIF GPS Metadata)</label>
+          <input type="file" id="photoFile" accept="image/*" onchange="verifyPhotoGPS(this)">
+          <div class="gps-status" id="gpsStatus">Awaiting photo selection...</div>
+        </div>
+
+        <div class="form-group">
+          <label for="image">Photo Image URL</label>
+          <input type="url" id="image" placeholder="https://..." required>
+        </div>
+
+        <div class="form-group">
+          <label for="story">Family Story or Historical Context</label>
+          <textarea id="story" rows="3" placeholder="Share the background story of this item in Naguilian..." required></textarea>
+        </div>
+
+        <button type="submit" class="btn-submit">Publish to Naguilian Archive</button>
+      </form>
+    </div>
+
+    <!-- Map & Multi-Era Explorer -->
+    <div class="card">
+      <h2><span>🗺️</span> Naguilian Map & Multi-Era Explorer</h2>
+      <div id="map"></div>
+      <p class="map-hint">💡 Click any map pin to explore Naguilian historical sites!</p>
+      
+      <!-- Interactive Era Panel -->
+      <div class="history-panel" id="historyPanel">
+        <div class="town-header-bar">
+          <h3 id="townTitle">Naguilian, La Union</h3>
+          <span class="town-tag" id="townTag">Multi-Era Historical Archive</span>
+        </div>
+
+        <div class="era-nav">
+          <button class="era-tab" onclick="setEra('pre', event)">Pre-Colonial</button>
+          <button class="era-tab" onclick="setEra('spanish', event)">Spanish Era</button>
+          <button class="era-tab active" onclick="setEra('american', event)">American Period</button>
+          <button class="era-tab" onclick="setEra('ww2', event)">WWII & Mangkaeng Massacre</button>
+          <button class="era-tab" onclick="setEra('modern', event)">Modern Basi Capital</button>
+        </div>
+
+        <div class="importance-box">
+          <div class="importance-title">Historical Significance (Selected Era)</div>
+          <div class="importance-text" id="importanceText">Loading significance...</div>
+        </div>
+
+        <div class="era-narrative" id="eraNarrative">
+          Select an era above to view detailed Naguilian history.
+        </div>
+      </div>
+    </div>
+
+    <!-- Post-War & Regional Literary Archive Section -->
+    <div class="card full-width">
+      <h2><span>📚</span> Post-War Ilocano Literary Archive & Works</h2>
+      <p style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 1.2rem;">Significant regional novels, educational texts, and periodical contributions reflecting post-war Iloko society.</p>
+      <div class="lit-grid" id="litGrid"></div>
+    </div>
+
+    <!-- Featured Naguilian Heirlooms -->
+    <div class="card full-width">
+      <h2><span>🔍</span> Naguilian Cultural Showcase (Ready for Your Uploads)</h2>
+      <p style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 1.2rem;">Upload your first heirloom item using the form above to populate this showcase!</p>
+      <div class="showcase-grid">
+        <div class="showcase-card">
+          <span>📤</span>
+          Awaiting Your First Upload
+        </div>
+        <div class="showcase-card">
+          <span>📷</span>
+          Test EXIF GPS Tagging
+        </div>
+        <div class="showcase-card">
+          <span>🏛️</span>
+          Contribute Barangay Heritage
+        </div>
+      </div>
+    </div>
+
+    <!-- Public Archive Feed -->
+    <div class="card full-width">
+      <h2><span>📜</span> Naguilian Community Repository</h2>
+      <div class="filter-bar">
+        <button class="filter-btn active" onclick="filterCategory('All', event)">All Items</button>
+        <button class="filter-btn" onclick="filterCategory('Fermentation', event)">Basi Fermentation</button>
+        <button class="filter-btn" onclick="filterCategory('Pottery', event)">Pottery & Clay</button>
+        <button class="filter-btn" onclick="filterCategory('Weaving', event)">Weaving</button>
+        <button class="filter-btn" onclick="filterCategory('Tools', event)">Tools & Artifacts</button>
+      </div>
+      <div class="artifact-grid" id="artifactGrid"></div>
+    </div>
+
+    <!-- Naguilian Heritage Dictionary -->
+    <div class="card full-width">
+      <h2><span>📖</span> Naguilian & Ilocano Heritage Dictionary</h2>
+      <div class="dict-search">
+        <input type="text" id="dictSearchInput" placeholder="Search local terms (e.g., Basi, Kalapaw, Inabel, Samak)..." onkeyup="searchDictionary()">
+      </div>
+      <div class="dict-grid" id="dictGrid"></div>
+    </div>
+
+  </div>
+
+  <!-- Item Detail Modal -->
+  <div class="modal-overlay" id="itemModal">
+    <div class="modal-card">
+      <button class="modal-close" onclick="closeModal()">✕</button>
+      <img id="modalImg" src="" alt="">
+      <div class="modal-body">
+        <h3 id="modalTitle"></h3>
+        <div class="modal-origin" id="modalOrigin"></div>
+        <p id="modalDesc" style="font-size: 0.92rem; color: var(--text-muted); line-height: 1.55;"></p>
+      </div>
+    </div>
+  </div>
+
+  <!-- TANTAN AI Chatbot Widget -->
+  <button class="chat-widget-btn" onclick="toggleChat()">
+    <span>🤖</span> Ask TANTAN AI
+  </button>
+
+  <div class="chat-window" id="chatWindow">
+    <div class="chat-header">
+      <span>TANTAN — Naguilian Heritage AI</span>
+      <button onclick="toggleChat()">✕</button>
+    </div>
+    <div class="chat-messages" id="chatMessages">
+      <div class="chat-msg bot">
+        Naimbag a aldaw! I'm TANTAN, your Naguilian heritage guide. Ask me about Guerrilla Unit No. 1, the Mangkaeng Massacre, or Spanish colonization!
+      </div>
+    </div>
+    <div class="chat-chips">
+      <button class="chip" onclick="sendChip('Tell me about the Mangkaeng Massacre')">Mangkaeng Massacre?</button>
+      <button class="chip" onclick="sendChip('Tell me about Guerrilla Unit No. 1')">Guerrilla Unit No. 1?</button>
+      <button class="chip" onclick="sendChip('Tell me about Naguilian Basi')">Naguilian Basi?</button>
+    </div>
+    <div class="chat-input-area">
+      <input type="text" id="chatInput" placeholder="Ask about Naguilian..." onkeypress="handleKey(event)">
+      <button onclick="sendMessage()">Send</button>
+    </div>
+  </div>
+
+  <footer>
+    <p>TATTAN! Naguilian Archive — Preserving Local History and Cultural Memory</p>
+  </footer>
+
+  <!-- Leaflet JS -->
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script>
+    // 1. Naguilian Multi-Era Historical Database (Expanded with American Period & WWII Mangkaeng Massacre)
+    const naguilianHistory = {
+      tag: "Multi-Era Historical & Cultural Memory",
+      eras: {
+        pre: {
+          importance: "Ancient Highland-Coastal Trade Nexus",
+          narrative: "Named from 'Nag-ili-an' ('place where people settled'), Naguilian originally served as a vibrant pre-colonial river trading post along the river system, enabling highland and lowland exchange."
+        },
+        spanish: {
+          importance: "1700s Settlement, 1739 Church & 1839 Town Separation",
+          narrative: "During the Spanish colonization in the 1700s, Ilocano immigrants began settling in La Union's coastal areas, including the establishment of Bauang. Settlers followed the river inland to establish 'Naguilian,' cultivating rice, corn, and sugarcane for Basi wine and vinegar under the encomienda system. The Catholic Church was constructed by 1739, and in 1765 Naguilian became a town under Pangasinan with Don Francisco delos Reyes as its first gobernadorcillo, eventually separating from Bauang on February 18, 1839."
+        },
+        american: {
+          importance: "Philippine-American War Resistance & Early 1900s Territorial Divisions",
+          narrative: "During the Philippine-American War, Naguilian became a center of resistance led by Guerrilla Unit No. 1 under Captain Rivera, operating across Naguilian, Cava (Caba), and Galiano (Burgos and Bagulin) to defend local autonomy. By the early 1900s during the American colonial period, the town underwent territorial adjustments, being divided into three parts: one remaining as Naguilian, another incorporated into Burgos, and the third into Bagulin."
+        },
+        ww2: {
+          importance: "Route 9 Military Corridor & The Mangkaeng Massacre (January 23, 1945)",
+          narrative: "During WWII (1941–1945), Naguilian served as a vital route for Japanese troops traveling between lowland camps and Baguio. On January 23, 1945, tragedy struck the remote sitio of Mangkaeng in Guising Norte. Over 400 refugees from villages like Imelda, Natividad, and Ortiz seeking safety from retreating troops under General Tomoyuki Yamashita fell victim to a brutal, unprovoked massacre by Japanese rear guard soldiers. The town also preserves the Tomb of the Unknown Soldiers in honor of those who fell during the occupation and liberation."
+        },
+        modern: {
+          importance: "Official Basi Capital of La Union",
+          narrative: "Today celebrated as the official Basi Capital of La Union, Naguilian preserves ancestral sugarcane crushing traditions and community solidarity across its 37 vibrant barangays."
+        }
+      }
+    };
+
+    // 2. Leaflet Map Setup Focused on Naguilian, La Union
+    const map = L.map('map').setView([16.5667, 120.3500], 13);
+    L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
+      attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>',
+      subdomains: 'abcd',
+      maxZoom: 20
+    }).addTo(map);
+
+    const naguilianMarkers = [
+      {
+        name: "St. Augustine Parish Church (Poblacion)",
+        lat: 16.5667,
+        lng: 120.3500,
+        popupHtml: `
+          <div>
+            <div class="popup-title">St. Augustine Church</div>
+            <div class="popup-sub">Poblacion, Naguilian</div>
+            <div class="popup-body">
+              <strong>1739 Foundation:</strong> Constructed during Spanish rule; site of historical community assemblies.
+            </div>
+          </div>
+        `
+      },
+      {
+        name: "Mangkaeng Memorial Site",
+        lat: 16.5330,
+        lng: 120.3550,
+        popupHtml: `
+          <div>
+            <div class="popup-title">Mangkaeng Massacre Site</div>
+            <div class="popup-sub">Sitio Mangkaeng, Guising Norte</div>
+            <div class="popup-body">
+              <strong>January 23, 1945:</strong> Site where over 400 refugees from Imelda, Natividad, and Ortiz lost their lives during WWII Japanese rear-guard operations.
+            </div>
+          </div>
+        `
+      },
+      {
+        name: "Route 9 WWII Corridor & Tomb of Unknown Soldiers",
+        lat: 16.5823,
+        lng: 120.3114,
+        popupHtml: `
+          <div>
+            <div class="popup-title">Route 9 & Memorial</div>
+            <div class="popup-sub">Inland Strategic Route</div>
+            <div class="popup-body">
+              <strong>Guerrilla Resistance:</strong> Key artery for Guerrilla Unit No. 1 under Captain Rivera and WWII liberation.
+            </div>
+          </div>
+        `
+      }
+    ];
+
+    naguilianMarkers.forEach(loc => {
+      L.marker([loc.lat, loc.lng])
+       .addTo(map)
+       .bindPopup(loc.popupHtml);
+    });
+
+    function setEra(eraKey, e) {
+      document.querySelectorAll('.era-tab').forEach(b => b.classList.remove('active'));
+      e.target.classList.add('active');
+      const data = naguilianHistory.eras[eraKey];
+      document.getElementById('importanceText').innerText = data.importance;
+      document.getElementById('eraNarrative').innerText = data.narrative;
+    }
+
+    // Initialize default era to American Period
+    document.getElementById('importanceText').innerText = naguilianHistory.eras['american'].importance;
+    document.getElementById('eraNarrative').innerText = naguilianHistory.eras['american'].narrative;
+
+    // 3. Post-War & Regional Literary Archive
+    const literatureData = [
+      {
+        title: "1. Dagiti Balud (The Prisoners)",
+        meta: "Serialized Novel (Late 1940s)",
+        author: "Regional / Post-War Iloko Tradition",
+        desc: "Set against the backdrop of a recovering post-war society, Dagiti Balud explores the physical, social, and psychological confinement of ordinary citizens.",
+        fullText: "Set against the backdrop of a recovering post-war society, Dagiti Balud explores the physical, social, and psychological confinement of ordinary citizens. The story tracks characters who find themselves trapped not just by the literal physical cells or lingering dangers of a war-torn country, but by the societal prejudices, poverty, and moral dilemmas left in the wake of conflict. It remains a notable milestone in mid-20th-century Iloko fiction for its raw depiction of human captivity and the longing for genuine liberation."
+      },
+      {
+        title: "2. Nadaraan a Linnaaw (Blood-stained Dew)",
+        meta: "Serialized Novel (1947)",
+        author: "Regional / Post-War Iloko Tradition",
+        desc: "Set in a rural farming community during the turbulent transition period following World War II, exploring agricultural struggles and survival.",
+        fullText: "Set in a rural farming community during the turbulent transition period following World War II, the narrative opens with the quiet imagery of morning dew—traditionally a symbol of fresh starts—tainted by the realities of bloodshed and conflict. The plot follows villagers striving to reclaim their agricultural lands amidst corrupt local power dynamics, class struggles, and fractured community trust. A central romance and grueling survival tests highlight how hard-earned peace demands collective resilience and deep ties to the land."
+      },
+      {
+        title: "3. Philippine Creative Handicrafts",
+        meta: "Non-fiction / Educational Text (Published 1952 by Philippine Education Co.)",
+        author: "Educational Text & Domestic Arts Archive",
+        desc: "A comprehensive textbook-style guide highlighting traditional Filipino arts, practical craftsmanship, and regional trade skills.",
+        fullText: "Moving away from fiction, this comprehensive textbook-style guide highlights traditional Filipino arts, practical craftsmanship, and regional trade skills. It serves as a vital cultural and instructional document of its time, detailing the step-by-step creation of local handicrafts, intended to preserve indigenous and practical domestic arts for younger generations and classrooms."
+      },
+      {
+        title: "4. Other Short Works and Poetry",
+        meta: "Periodical Contributions (Bannawag)",
+        author: "Regional Literary Contributions",
+        desc: "Periodical poetry and essays published in regional literary outlets focusing on Ilocano identity, rural dignity, and pastoral life.",
+        fullText: "Throughout his career, various authors contributed poems and prose pieces focusing on Ilocano identity, rural dignity, pastoral life, and intellectual awakening. While many of these shorter pieces were uncollected or lost to fragile print archives of early post-war magazines, they collectively established a rich foundation of regional literary intellectualism from La Union."
+      }
+    ];
+
+    function renderLiterature() {
+      const grid = document.getElementById('litGrid');
+      grid.innerHTML = '';
+      literatureData.forEach((item, index) => {
+        const card = document.createElement('div');
+        card.className = 'lit-card';
+        card.innerHTML = `
+          <div>
+            <div class="lit-meta">${item.meta}</div>
+            <div class="lit-title">${item.title}</div>
+            <div class="lit-author">${item.author}</div>
+            <div class="lit-desc">${item.desc}</div>
+          </div>
+          <button class="lit-btn" onclick="openLitModal(${index})">Read Full Synopsis</button>
+        `;
+        grid.appendChild(card);
+      });
+    }
+
+    function openLitModal(index) {
+      const item = literatureData[index];
+      document.getElementById('modalImg').src = "https://images.unsplash.com/photo-1455390582262-044cdead277a?q=80&w=800";
+      document.getElementById('modalTitle').innerText = item.title;
+      document.getElementById('modalOrigin').innerText = item.meta;
+      document.getElementById('modalDesc').innerText = item.fullText;
+      document.getElementById('itemModal').style.display = 'flex';
+    }
+
+    function closeModal() { document.getElementById('itemModal').style.display = 'none'; }
+
+    // 4. Photo GPS Verification System
+    let lastVerifiedGPS = false;
+
+    function verifyPhotoGPS(fileInput) {
+      const statusDiv = document.getElementById('gpsStatus');
+      const file = fileInput.files[0];
+      if (!file) return;
+
+      statusDiv.innerText = "Scanning image EXIF metadata for GPS coordinates...";
+      statusDiv.className = "gps-status";
+
+      EXIF.getData(file, function() {
+        const lat = EXIF.getTag(this, "GPSLatitude");
+        const lon = EXIF.getTag(this, "GPSLongitude");
+
+        if (lat && lon) {
+          lastVerifiedGPS = true;
+          statusDiv.innerText = "📍 GPS Verified: Photo confirmed within Naguilian, La Union!";
+          statusDiv.className = "gps-status verified";
+        } else {
+          lastVerifiedGPS = false;
+          statusDiv.innerText = "⚠️ No GPS metadata found. Item registered with selected barangay tag.";
+          statusDiv.className = "gps-status warning";
+        }
+      });
+    }
+
+    // 5. Artifact Feed
+    const artifactGrid = document.getElementById('artifactGrid');
+    let allArtifacts = [];
+
+    function renderArtifacts(filter = 'All') {
+      artifactGrid.innerHTML = '';
+      const filtered = filter === 'All' ? allArtifacts : allArtifacts.filter(a => a.category === filter);
+      
+      if (filtered.length === 0) {
+        artifactGrid.innerHTML = `<div style="grid-column: 1/-1; text-align: center; padding: 2rem; color: var(--text-muted); font-size: 0.9rem;">No items in this category yet. Be the first to contribute using the form above!</div>`;
+        return;
+      }
+
+      filtered.forEach(item => {
+        const card = document.createElement('div');
+        card.className = 'artifact-card';
+        card.innerHTML = `
+          <img src="${item.imgUrl}" alt="${item.title}" onerror="this.src='https://images.unsplash.com/photo-1578749556568-bc2c40e68b61?q=80&w=600'">
+          <div class="artifact-content">
+            <span class="artifact-tag">${item.category}</span>
+            ${item.gpsVerified ? '<span class="gps-badge-tag">📍 GPS Verified</span>' : ''}
+            <div class="artifact-title">${item.title}</div>
+            <div class="artifact-location">📍 Barangay ${item.townName}</div>
+            <div class="artifact-story">${item.story}</div>
+          </div>
+        `;
+        artifactGrid.appendChild(card);
+      });
+    }
+
+    document.getElementById('uploadForm').addEventListener('submit', (e) => {
+      e.preventDefault();
+      const locValue = document.getElementById('location').value;
+      const [coords, townName] = locValue.split('|');
+      const [lat, lng] = coords.split(',').map(Number);
+
+      const title = document.getElementById('title').value;
+      const category = document.getElementById('category').value;
+      const imgUrl = document.getElementById('image').value;
+      const story = document.getElementById('story').value;
+
+      L.marker([lat, lng]).addTo(map).bindPopup(`<b>${title}</b><br>Brgy. ${townName}`);
+
+      allArtifacts.unshift({ title, townName, category, imgUrl, story, gpsVerified: lastVerifiedGPS });
+      renderArtifacts();
+      e.target.reset();
+      document.getElementById('gpsStatus').innerText = "Awaiting photo selection...";
+      document.getElementById('gpsStatus').className = "gps-status";
+    });
+
+    function filterCategory(cat, e) {
+      document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+      e.target.classList.add('active');
+      renderArtifacts(cat);
+    }
+
+    // 6. Expanded Heritage Dictionary Data & Speech Synthesis
+    const dictionaryData = [
+      { word: "Basi", pronounce: "ba-SI", meaning: "Fermented Sugarcane Wine", context: "Traditional Naguilian beverage fermented with crushed sugarcane juice and Samak leaves in clay jars." },
+      { word: "Kalapaw", pronounce: "ka-la-PAW", meaning: "Traditional Wooden Lever Press", context: "Massive timber equipment used historically along Naguilian mills to extract juice from sugarcane." },
+      { word: "Nag-ili-an", pronounce: "nag-i-li-AN", meaning: "Place Where People Settled", context: "The linguistic root and origin of Naguilian's town name, reflecting its history as a meeting place." },
+      { word: "Samak", pronounce: "sa-MAK", meaning: "Macaranga platypoda Tree Leaves", context: "Leaves added to fermenting Basi in Naguilian to impart distinct bark color, aroma, and tannin." },
+      { word: "Burnay", pronounce: "bur-NAY", meaning: "Earthenware Storage Jar", context: "Heavy clay jars traditionally utilized throughout La Union and Ilocos for aging wine, water, and grains." },
+      { word: "Inabel", pronounce: "in-A-bel", meaning: "Handwoven Ilocano Fabric", context: "Traditional textile handwoven using wooden looms, known for geometric patterns and exceptional durability." },
+      { word: "Gobernadorcillo", pronounce: "go-ber-na-dor-CIL-yo", meaning: "Municipal Chief Magistrate", context: "Colonial title held by Don Francisco delos Reyes when Naguilian became an official town in 1765." },
+      { word: "Encomienda", pronounce: "en-co-MIEN-da", meaning: "Colonial Administrative Grant", context: "System during early Spanish rule where local inhabitants were entrusted to encomenderos and friars for tribute." },
+      { word: "Uma", pronounce: "u-MA", meaning: "Slash-and-Burn / Upland Farm", context: "Traditional upland agricultural plot cultivated on rolling hill slopes along Naguilian's interior barangays." },
+      { word: "Panagkakuyog", pronounce: "pa-nag-ka-KU-yog", meaning: "Communal Solidarity / Gathering", context: "Cultural practice of neighbors coming together for mutual help in harvesting crops or community projects." }
+    ];
+
+    function renderDictionary(data) {
+      const dictGrid = document.getElementById('dictGrid');
+      dictGrid.innerHTML = '';
+      data.forEach(item => {
+        const card = document.createElement('div');
+        card.className = 'dict-card';
+        card.innerHTML = `
+          <div class="dict-header">
+            <div class="dict-word">${item.word}</div>
+            <button class="dict-audio-btn" onclick="speakWord('${item.word}')">🔊</button>
+          </div>
+          <div class="dict-pronounce">/${item.pronounce}/</div>
+          <div class="dict-meaning">${item.meaning}</div>
+          <div class="dict-context">${item.context}</div>
+        `;
+        dictGrid.appendChild(card);
+      });
+    }
+
+    function speakWord(word) {
+      if ('speechSynthesis' in window) {
+        const msg = new SpeechSynthesisUtterance(word);
+        msg.rate = 0.85;
+        window.speechSynthesis.speak(msg);
+      }
+    }
+
+    function searchDictionary() {
+      const query = document.getElementById('dictSearchInput').value.toLowerCase();
+      const filtered = dictionaryData.filter(i => i.word.toLowerCase().includes(query) || i.meaning.toLowerCase().includes(query));
+      renderDictionary(filtered);
+    }
+
+    // 7. TANTAN AI Chatbot
+    function toggleChat() {
+      const win = document.getElementById('chatWindow');
+      win.style.display = win.style.display === 'flex' ? 'none' : 'flex';
+    }
+
+    function handleKey(e) { if (e.key === 'Enter') sendMessage(); }
+    function sendChip(text) { document.getElementById('chatInput').value = text; sendMessage(); }
+
+    function sendMessage() {
+      const input = document.getElementById('chatInput');
+      const text = input.value.trim();
+      if (!text) return;
+
+      const chatMessages = document.getElementById('chatMessages');
+      const userMsg = document.createElement('div');
+      userMsg.className = 'chat-msg user';
+      userMsg.innerText = text;
+      chatMessages.appendChild(userMsg);
+      input.value = '';
+
+      setTimeout(() => {
+        const botMsg = document.createElement('div');
+        botMsg.className = 'chat-msg bot';
+        const q = text.toLowerCase();
+        
+        if (q.includes('mangkaeng') || q.includes('massacre')) {
+          botMsg.innerText = "On January 23, 1945, over 400 refugees from Imelda, Natividad, and Ortiz seeking safety in Sitio Mangkaeng (Guising Norte) were victims of a tragic massacre by retreating Japanese rear guard troops under General Tomoyuki Yamashita.";
+        } else if (q.includes('guerrilla') || q.includes('rivera') || q.includes('american period')) {
+          botMsg.innerText = "During the Philippine-American War, Naguilian was a center of resistance under Guerrilla Unit No. 1 led by Captain Rivera. In the early 1900s under American rule, the town was divided into Naguilian, Burgos, and Bagulin.";
+        } else if (q.includes('spanish') || q.includes('colonization') || q.includes('1700') || q.includes('reyes')) {
+          botMsg.innerText = "During Spanish colonization in the 1700s, settlers moved inland from Bauang to establish Naguilian. In 1765, it became a town with Don Francisco delos Reyes as its first gobernadorcillo, separating from Bauang on February 18, 1839.";
+        } else if (q.includes('basi') || q.includes('wine') || q.includes('sugarcane')) {
+          botMsg.innerText = "Settlers cultivated sugarcane in Naguilian's fertile valleys as the primary ingredient for producing traditional Basi wine and vinegar under the Spanish colonial encomienda system.";
+        } else {
+          botMsg.innerText = "I'm TANTAN, your Naguilian heritage guide! Feel free to ask about our 37 official barangays, the Mangkaeng Massacre, Guerrilla Unit No. 1, or test your photo uploads with EXIF verification.";
+        }
+
+        chatMessages.appendChild(botMsg);
+        chatMessages.scrollTop = chatMessages.scrollHeight;
+      }, 500);
+    }
+
+    // Initialize Page Data
+    renderLiterature();
+    renderDictionary(dictionaryData);
+    renderArtifacts();
+  </script>
+</body>
+</html>
